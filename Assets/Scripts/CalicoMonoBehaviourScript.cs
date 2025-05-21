@@ -22,11 +22,11 @@ public class CalicoMonoBehaviourScript : MonoBehaviour
         {
             if (moveInput.x > 0)
             {
-                transform.localScale = new Vector3(1, 1, 0);
+                transform.localRotation = Quaternion.Euler(0, 360, 0);
             }
             else
             {
-                transform.localScale = new Vector3(-1, 1, 0);
+                transform.localRotation = Quaternion.Euler(0, 180, 0);
             }
         }
         Debug.Log("Position: " + transform.position); // Log the position of the object
