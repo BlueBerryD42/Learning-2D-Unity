@@ -4,7 +4,8 @@ using UnityEngine;
 public class MovementScript : MonoBehaviour
 {
     [Header("Movement Settings")]
-    public float moveSpeed = 5f;
+    public float walkSpeed = 3f;
+    public float runSpeed = 6f;
     public float jumpForce = 10f;
 
     [Header("Ground Check Settings")]
@@ -16,49 +17,93 @@ public class MovementScript : MonoBehaviour
     private bool isGrounded;
     private float moveInput;
     private bool facingRight = true;
-    private Animator animator; // Reference to the Animator component
+    private Animator animator;
+
+    private bool isDead = false;
+    private bool isAttacking = false;
+    private bool isRunning = false;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        animator = GetComponent<Animator>();
     }
 
     void Update()
     {
-        // Handle horizontal movement input
+        if (isDead) return;
+
         moveInput = Input.GetAxisRaw("Horizontal");
 
-        // Flip character based on direction
-        if ((moveInput > 0 && !facingRight) || (moveInput < 0 && facingRight))
-        {
-            Flip();
-        }
+        // Run logic (hold shift)
+        isRunning = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
-        // Handle jump input
-        if (isGrounded && Input.GetButtonDown("Jump"))
+        // Handle jump
+        if (isGrounded && Input.GetKeyDown(KeyCode.Space))
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+            animator.SetTrigger("Jump");
         }
+
+        // Handle attack
+        if (Input.GetMouseButtonDown(0)) // Left click to attack
+        {
+            isAttacking = true;
+            animator.SetTrigger("Attack");
+        }
+
+        // Handle death
+        if (Input.GetKeyDown(KeyCode.K)) // Press 'K' to simulate death
+        {
+            isDead = true;
+            animator.SetTrigger("Die");
+            rb.linearVelocity = Vector2.zero;
+        }
+
+        FlipCharacter();
+        UpdateAnimation();
+        DebugMovementState();
     }
 
     void FixedUpdate()
     {
-        // Move the player
-        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
+        if (isDead) return;
 
-        // Check if grounded
+        float speed = isRunning ? runSpeed : walkSpeed;
+        rb.linearVelocity = new Vector2(moveInput * speed, rb.linearVelocity.y);
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
     }
 
-    private void Flip()
+    private void FlipCharacter()
     {
-        facingRight = !facingRight;
-        Vector3 scale = transform.localScale;
-        scale.x *= -1;
-        transform.localScale = scale;
+        if ((moveInput > 0 && !facingRight) || (moveInput < 0 && facingRight))
+        {
+            facingRight = !facingRight;
+            Vector3 scale = transform.localScale;
+            scale.x *= -1;
+            transform.localScale = scale;
+        }
     }
 
-    // Optional: visualize ground check in editor
+    private void UpdateAnimation()
+    {
+        bool isIdle = Mathf.Abs(moveInput) < 0.01f && isGrounded && !isAttacking;
+        bool isWalking = Mathf.Abs(moveInput) > 0.01f && !isRunning && isGrounded;
+        bool isJumping = !isGrounded && rb.linearVelocity.y > 0.1f;
+        bool isFalling = !isGrounded && rb.linearVelocity.y < -0.1f;
+
+        animator.SetBool("isIdle", isIdle);
+        animator.SetBool("isWalking", isWalking);
+        animator.SetBool("isRunning", isRunning && Mathf.Abs(moveInput) > 0.01f && isGrounded);
+        animator.SetBool("isJumping", isJumping);
+        animator.SetBool("isFalling", isFalling);
+    }
+
+    private void DebugMovementState()
+    {
+        Debug.Log($"[MovementState] Grounded: {isGrounded}, MoveInput: {moveInput}, Velocity: {rb.linearVelocity}, Dead: {isDead}, Running: {isRunning}");
+    }
+
     private void OnDrawGizmosSelected()
     {
         if (groundCheck != null)
@@ -67,15 +112,4 @@ public class MovementScript : MonoBehaviour
             Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
         }
     }
-
-    private void UpdateAnimation()
-    {
-        bool isIdle = Mathf.Abs(moveInput) < 0.01f;
-        bool isRunning = !isIdle && Mathf.Abs(moveInput) > 0.01f;
-        bool isJumping = !isGrounded && rb.linearVelocity.y > 0.01f;
-        animator.SetBool("isIdle", isIdle);
-        animator.SetBool("isRunning", isRunning);
-        animator.SetBool("isJumping", isJumping);
-    }
 }
-
